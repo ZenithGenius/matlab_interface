@@ -87,17 +87,34 @@ This project integrates a Python Flask backend with a React TypeScript frontend,
 
 ## Getting Started with Git
 
-To clone the repository, use the following command:
+Git is a distributed version control system that allows you to track changes to your code, collaborate with others, and revert to previous versions if needed.
+
+**Prerequisites:**
+
+*   **Git:** You need to have Git installed on your system. You can download it from the [official Git website](https://git-scm.com/downloads). For Windows users, Git Bash is recommended as it provides a Unix-like environment for using Git.
+
+**Cloning the Repository:**
+
+To obtain a local copy of the project repository, use the following command in your terminal or Git Bash:
 
 ```bash
 git clone https://github.com/ZenithGenius/matlab_interface.git
 ```
 
-###
+This command will create a directory named `matlab_interface` in your current location, containing all the project files and the Git history.
+
+**Further Learning:**
+
+*   [Git Documentation](https://git-scm.com/doc)
+*   [GitHub Guides](https://guides.github.com/)
 
 The `matlab_interface.py` file automatically selects the appropriate engine (MATLAB or Octave) based on the operating system.
 
-1.  **Set Environment Variables:** Set any necessary environment variables, such as API keys or database connection strings.
+1.  **Install Dependencies:** Install the necessary Python packages using pip:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 2.  **Run the Flask server:**
 
@@ -133,13 +150,9 @@ npm install -g pnpm
     pnpm install # or npm install or yarn install
     ```
 
-### Configuration
-
-1.  **Environment Variables:** If the frontend requires any environment variables, create a `.env` file in the `frontend` directory and define the variables there.
-
 ### Running the Frontend
 
-1.  **Start the development server:**
+2.  **Start the development server:**
 
     ```bash
     pnpm run dev # or npm run dev or yarn run dev
