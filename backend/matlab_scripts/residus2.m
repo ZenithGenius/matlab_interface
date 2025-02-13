@@ -52,6 +52,11 @@ xlabel('z'); ylabel('I');
 legend('I: fonction porte', 'I: courbe linéaire');
 grid on;
 
+% Create the results directory if it doesn't exist
+if ~exist('results/residus2', 'dir')
+    mkdir('results/residus2');
+end
+
 % Base filename for the plot
 baseFilename = 'results/residus2/residus2_plot.png';
 filename = baseFilename;

@@ -85,6 +85,11 @@ function hallen
                 xlabel('Cte z en [m]')
                 ylabel('Courant I en [A]')
             end
+
+            % Create the results directory if it doesn't exist
+            if ~exist('results/hallen', 'dir')
+                mkdir('results/hallen');
+            end
             
             % Base filename for the plot
             baseFilename = sprintf('results/hallen/hallen_plot_f%d_l%d.png', h, g);

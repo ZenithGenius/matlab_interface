@@ -10,33 +10,49 @@ CORS(app)
 matlab = MatlabInterface()
 
 method_mapping = {
-    # '0_0': matlab.run_0_0,  # Example mapping for method ID '0_0'
-    # '0_1': matlab.run_0_1,  # Example mapping for method ID '0_1'
-    # '0_2': matlab.run_0_2,  # Example mapping for method ID '0_2'
-    # '1_0': matlab.run_euler, # Example mapping for method ID '1_0'
-    # '1_1': matlab.run_crank_nicholson, # Example mapping for method ID '1_1'
-    # '1_2': matlab.run_iterative_methods, # Example mapping for method ID '1_2'
-    # '2_0': matlab.run_laplace, # Example mapping for method ID '2_0'
-    '2_1': matlab.run_poisson, # Example mapping for method ID '2_1'
-    # '2_2': matlab.run_helmholtz, # Example mapping for method ID '2_2'
-    # Add mappings for all other method IDs
-    '0_0': matlab.run_phil2,
-    '0_1': matlab.run_hallen,
-    '0_2': matlab.run_residus2,
-    '1_0': matlab.run_general2,
 
+    '1_2': matlab.run_imedance_ligne_microruban,
+    '1_3': matlab.run_relaxation,
+    '1_4': matlab.run_surelaxation,
+    '1_5': matlab.run_code3,
+    '1_6': matlab.run_shield_microstrip_line,
+    '2_0': matlab.run_maillage,
+    '2_1': matlab.run_poisson,
+    '2_2': matlab.run_maillageauto,
+    '3_0': matlab.run_residus,
+    '3_1': matlab.run_residusx,
+    '3_2': matlab.run_application876,
+    '3_3': matlab.run_comparaison,
+    '3_4': matlab.run_phil2,
+    '3_5': matlab.run_ligneruban,
+    '3_6': matlab.run_application196,
+    '3_7': matlab.run_residus2,
+    '3_8': matlab.run_general2,
+    '3_9': matlab.run_hallen
 }
 
 method_name_mapping = {
-    '0_0': 'phil2',
-    '0_1': 'hallen',
-    '0_2': 'residus2',
-    '1_0': 'general2',
+    '1_2': 'imedance_ligne_microruban',
+    '1_3': 'relaxation',
+    '1_4': 'surelaxation',
+    '1_5': 'code3',
+    '1_6': 'shield_microstrip_line',
+    '2_0': 'maillage',
     '2_1': 'poisson',
-    # Add other mappings as needed
+    '2_2': 'maillageauto',
+    '3_0': 'residus',
+    '3_1': 'residusx',
+    '3_2': 'application876',
+    '3_3': 'comparaison',
+    '3_4': 'phil2',
+    '3_5': 'ligneruban',
+    '3_6': 'application196',
+    '3_7': 'residus2',
+    '3_8': 'general2',
+    '3_9': 'hallen'
 }
 
-def get_latest_result(method_id, file_type='txt'):
+def get_latest_result(method_id, file_type='txt', image_type=None):
     """Get the most recent result file for a given method."""
     # Convert method ID to actual function name
     method_name = method_name_mapping.get(method_id, method_id)
@@ -46,7 +62,10 @@ def get_latest_result(method_id, file_type='txt'):
         pattern = f'{base_path}/{method_name.lower()}_results*.{file_type}'
     elif file_type == 'png':
         # Specific naming convention for image files
-        pattern = f'{base_path}/{method_name.lower()}_plot.png'
+        if image_type:
+            pattern = f'{base_path}/{method_name.lower()}_plot*_{image_type}.{file_type}'
+        else:
+            pattern = f'{base_path}/{method_name.lower()}_plot*.{file_type}'
     
     print(f"Searching for files matching pattern: {pattern}")
     files = glob.glob(pattern)
@@ -78,34 +97,61 @@ def execute_code():
         print(f"Method ID: {method_id}")
 
         if not method_id:
-            return jsonify({'success': False, 'error': 'No method ID provided'})
+            return jsonify({'success': False, 'error': 'Aucun identifiant de méthode fourni'})
 
         if method_id not in method_mapping:
-            return jsonify({'success': False, 'error': 'Invalid method ID'})
+            return jsonify({'success': False, 'error': 'Identifiant de méthode invalide'})
 
         # Execute the method
         method_to_call = method_mapping[method_id]
         print(f"Executing method for ID: {method_id}")
-        method_to_call()
+        if method_id == '2_2':
+            nx = data.get('nx')
+            ny = data.get('ny')
+            a = data.get('a')
+            b = data.get('b')
+            method_to_call(nx, ny, a, b)
+        else:
+            method_to_call()
         print(f"Method execution completed")
 
-        # Look for the most recent result file
-        result_file = get_latest_result(method_id, 'txt')
-        if result_file:
-            with open(result_file, 'r') as f:
-                results = f.read()
-            print(f"Found and read results from: {result_file}")
-            return jsonify({'success': True, 'data': results, 'type': 'text'})
+        # Initialize a list to hold results
+        results = []
 
-        # If no text file, look for image
-        image_file = get_latest_result(method_id, 'png')
-        if image_file:
-            relative_path = image_file.replace('results/', '', 1)
-            print(f"Found image file, serving: {relative_path}")
-            return jsonify({'success': True, 'data': f"/{relative_path}", 'type': 'image'})
+        # Look for the most recent text result file
+        text_file = get_latest_result(method_id, 'txt')
+        if text_file:
+            with open(text_file, 'r') as f:
+                text_results = f.read()
+            print(f"Found and read text results from: {text_file}")
+            results.append({'type': 'text', 'data': text_results})
 
-        print("No results found for either text or image files")
-        return jsonify({'success': False, 'error': 'No results found'})
+        # Look for the most recent png image file
+        image_file_Z = get_latest_result(method_id, 'png')
+        if image_file_Z:
+            relative_path_Z = image_file_Z.replace('results/', '', 1)
+            print(f"Found image file Z, serving: {relative_path_Z}")
+            results.append({'type': 'image', 'data': f"{relative_path_Z}"})
+            
+        # Look for the most recent png image file
+        image_file_U = get_latest_result(method_id, 'png');
+        if image_file_U:
+            relative_path_U = image_file_U.replace('results/', '', 1)
+            print(f"Found image file U, serving: {relative_path_U}")
+            results.append({'type': 'image', 'data': f"{relative_path_U}"})
+
+        # Determine the type of result to return
+        if results:
+            if len(results) == 1:
+                # If there's only one result, return it directly
+                return jsonify({'success': True, 'result': results[0]})
+            else:
+                # If there are multiple results, return them as a list
+                return jsonify({'success': True, 'result': {'type': 'multiple', 'data': results}})
+        else:
+            # If no results were found
+            print("No results found for either text or image files")
+            return jsonify({'success': False, 'error': 'Aucun résultat trouvé'})
 
     except Exception as e:
         print(f"Error in /execute endpoint: {str(e)}")
@@ -119,19 +165,6 @@ def serve_results(filename):
         method_name = parts[0]
         return send_from_directory(f'results/{method_name}', parts[-1])
     return send_from_directory('results', filename)
-
-@app.route('/calculate', methods=['POST'])
-def calculate():
-    try:
-        data = request.get_json()
-        input_value = data.get('input', 0)
-        print(f"Received input for calculation: {input_value}")
-        result = matlab.run_calculation(float(input_value))
-        print(f"Sending result back to client: {result}")
-        return jsonify({'success': True, 'data': result})
-    except Exception as e:
-        print(f"Error in /calculate endpoint: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/get-matlab-code/<method_id>', methods=['GET'])
 def get_matlab_code(method_id):

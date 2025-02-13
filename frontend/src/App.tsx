@@ -47,10 +47,12 @@ interface PlotData {
 	name?: string;
 }
 
-interface OutputResult {
-	type: 'text' | 'plot' | 'multiple' | 'image';
-	data: string | PlotData | PlotData[];
-}
+type OutputResult =
+	| { type: 'text'; data: string }
+	| { type: 'plot'; data: PlotData }
+	| { type: 'image'; data: string }
+	| { type: 'multiple'; data: MultipleOutputItem[] }
+	| null;
 
 type InputType = 'code' | 'numerical';
 
@@ -60,6 +62,11 @@ interface MethodOption {
 	description: string;
 	inputType: 'code' | 'numerical';
 	inputFormat: string;
+}
+
+interface MultipleOutputItem {
+	type: 'text' | 'image';
+	data: string;
 }
 
 interface MethodConfig {
@@ -132,6 +139,38 @@ const methodConfigs: Record<string, MethodConfig> = {
 				inputType: 'code',
 				inputFormat: 'MATLAB function pour méthodes itératives',
 			},
+			{
+				id: '1_3',
+				label: 'Outil pour la résolution analytique',
+				description:
+					'Comparaison des solutions numériques avec les solutions analytiques',
+				inputType: 'code',
+				inputFormat: 'MATLAB function pour résolution analytique',
+			},
+			{
+				id: '1_4',
+				label: 'Principe de maillage',
+				description:
+					'Impact du maillage sur la précision des résultats',
+				inputType: 'numerical',
+				inputFormat: 'MATLAB function pour le maillage',
+			},
+			{
+				id: '1_5',
+				label: 'Erreurs associées à la MDF',
+				description:
+					'Analyse et minimisation des erreurs de troncature et de discrétisation',
+				inputType: 'code',
+				inputFormat: 'MATLAB function pour analyse des erreurs',
+			},
+			{
+				id: '1_6',
+				label: 'Applications',
+				description:
+					"Exemples d'applications de la MDF dans divers domaines",
+				inputType: 'code',
+				inputFormat: 'MATLAB function pour applications MDF',
+			},
 		],
 	},
 	2: {
@@ -161,7 +200,7 @@ const methodConfigs: Record<string, MethodConfig> = {
 				label: 'Équation de Helmholtz',
 				description:
 					"Résolution de l'équation de Helmholtz par éléments finis",
-				inputType: 'code',
+				inputType: 'numerical',
 				inputFormat: 'MATLAB function pour Helmholtz',
 			},
 		],
@@ -195,6 +234,60 @@ const methodConfigs: Record<string, MethodConfig> = {
 					"Méthode variationnelle pour l'approximation des solutions",
 				inputType: 'code',
 				inputFormat: 'MATLAB function pour Rayleigh-Ritz',
+			},
+			{
+				id: '3_3',
+				label: 'Comparaison des valeurs exactes et approchées',
+				description:
+					'Compare les solutions exactes et approchées obtenues par MM',
+				inputType: 'code',
+				inputFormat: 'MATLAB function pour comparaison',
+			},
+			{
+				id: '3_4',
+				label: 'Determiner la densité de courant et evaluer le SCS',
+				description:
+					'Détermine la densité de courant et évalue la section efficace de diffusion (SCS)',
+				inputType: 'code',
+				inputFormat: 'MATLAB function pour densité de courant et SCS',
+			},
+			{
+				id: '3_5',
+				label: 'Application ligne Ruban',
+				description:
+					'Application de la méthode des moments à une ligne ruban',
+				inputType: 'code',
+				inputFormat: 'MATLAB function pour ligne ruban',
+			},
+			{
+				id: '3_6',
+				label: 'Phi approchée',
+				description: 'Calcul de Phi approchée',
+				inputType: 'code',
+				inputFormat: 'MATLAB function pour Phi approchée',
+			},
+			{
+				id: '3_7',
+				label: 'Fonction residus 2',
+				description: 'Calcul des residus 2',
+				inputType: 'code',
+				inputFormat: 'MATLAB function pour residus 2',
+			},
+			{
+				id: '3_8',
+				label: 'Dispersion par un système arvitraire de fils parallèles',
+				description:
+					'Etude de la dispersion par un système arvitraire de fils parallèles',
+				inputType: 'code',
+				inputFormat: 'MATLAB function pour dispersion fils parallèles',
+			},
+			{
+				id: '3_9',
+				label: "Resolution de l'equation intégrale de Hallen",
+				description: "Resolution de l'equation intégrale de Hallen",
+				inputType: 'code',
+				inputFormat:
+					'MATLAB function pour equation intégrale de Hallen',
 			},
 		],
 	},
@@ -236,7 +329,7 @@ function App() {
 	const [inputType, setInputType] = useState<InputType>('code');
 	const [output, setOutput] = useState<OutputResult | null>(null);
 	const [comments, setComments] = useState('');
-	const [status, setStatus] = useState('Ready');
+	const [status, setStatus] = useState('Prêt');
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [fontSize, setFontSize] = useState(14);
 	const [inputHeight, setInputHeight] = useState(320);
@@ -251,6 +344,14 @@ function App() {
 	const [method, setMethod] = useState<string | null>(null);
 	const [isCodeFullscreen, setIsCodeFullscreen] = useState(false);
 	const [matlabCode] = useState<string>('');
+	const [nx, setNx] = useState('');
+	const [ny, setNy] = useState('');
+	const [a, setA] = useState('');
+	const [b, setB] = useState('');
+	
+	const getImageURL = (imagePath: string) => {
+		return `http://localhost:5000/results/${imagePath}`;
+	};
 
 	useEffect(() => {
 		if (method) {
@@ -315,11 +416,11 @@ function App() {
 
 	const executeCode = async () => {
 		if (!method || !selectedOption) {
-			alert('Please select a method and option');
+			alert('Veuillez sélectionner une méthode et une option.');
 			return;
 		}
 
-		setStatus('Executing...');
+		setStatus('Exécution en cours...');
 
 		try {
 			const response = await fetch('http://localhost:5000/execute', {
@@ -330,29 +431,33 @@ function App() {
 				body: JSON.stringify({
 					method: selectedOption.id,
 					inputType: selectedOption.inputType,
+					nx: nx,
+					ny: ny,
+					a: a,
+					b: b,
 				}),
 			});
 
 			const result = await response.json();
-			console.log('Backend response:', result);
 
 			if (result.success) {
-				setOutput({ type: result.type, data: result.data });
-				setStatus('Execution completed');
+				// setOutput({ type: result.type, data: result.data });
+				setOutput(result.result as OutputResult);
+				setStatus('Exécution terminée');
 			} else {
 				console.error('Backend error:', result.error);
-				setStatus(`Error: ${result.error}`);
+				setStatus(`Erreur: ${result.error}`);
 			}
 		} catch (error) {
-			console.error('Fetch error:', error);
-			setStatus('Error during execution');
+			console.error('Erreur de récupération:', error);
+			setStatus("Erreur lors de l'exécution");
 		}
 	};
 
 	const clearInput = () => {
 		setInput('');
 		setOutput(null);
-		setStatus('Ready');
+		setStatus('Prêt');
 	};
 
 	const renderInput = () => {
@@ -419,7 +524,7 @@ function App() {
 								>
 									{input ||
 										matlabCode ||
-										'% Enter MATLAB code here'}
+										'% Entrez le code MATLAB ici'}
 								</SyntaxHighlighter>
 							</div>
 						</div>
@@ -428,14 +533,58 @@ function App() {
 			);
 		}
 
+		// return (
+		// <textarea
+		// 	value={input}
+		// 	onChange={(e) => handleInputChange(e.target.value)}
+		// 	style={{ fontSize: `${fontSize}px`, height: inputHeight }}
+		// 	className={`${commonClasses} bg-[#0d1117] text-[#c9d1d9] border border-[#30363d] p-4 font-mono resize-none focus:ring-2 focus:ring-[#58a6ff] focus:border-transparent`}
+		// 	placeholder='Entrez des valeurs numériques (par exemple, [1, 2, 3] ou format matriciel)'
+		// />
+		// );
 		return (
-			<textarea
-				value={input}
-				onChange={(e) => handleInputChange(e.target.value)}
-				style={{ fontSize: `${fontSize}px`, height: inputHeight }}
-				className={`${commonClasses} bg-[#0d1117] text-[#c9d1d9] border border-[#30363d] p-4 font-mono resize-none focus:ring-2 focus:ring-[#58a6ff] focus:border-transparent`}
-				placeholder='Enter numerical values (e.g., [1, 2, 3] or matrix format)'
-			/>
+			<div>
+				<div>
+					<label htmlFor='nx'>nx:</label>
+					<input
+						type='number'
+						id='nx'
+						value={nx}
+						onChange={(e) => setNx(e.target.value)}
+						className={`${commonClasses} bg-[#0d1117] text-[#c9d1d9] border border-[#30363d] p-4 font-mono resize-none focus:ring-2 focus:ring-[#58a6ff] focus:border-transparent`}
+					/>
+				</div>
+				<div>
+					<label htmlFor='ny'>ny:</label>
+					<input
+						type='number'
+						id='ny'
+						value={ny}
+						onChange={(e) => setNy(e.target.value)}
+						className={`${commonClasses} bg-[#0d1117] text-[#c9d1d9] border border-[#30363d] p-4 font-mono resize-none focus:ring-2 focus:ring-[#58a6ff] focus:border-transparent`}
+					/>
+				</div>
+				<div>
+					<label htmlFor='a'>a:</label>
+					<input
+						type='number'
+						id='a'
+						value={a}
+						onChange={(e) => setA(e.target.value)}
+						className={`${commonClasses} bg-[#0d1117] text-[#c9d1d9] border border-[#30363d] p-4 font-mono resize-none focus:ring-2 focus:ring-[#58a6ff] focus:border-transparent`}
+					/>
+				</div>
+				<div>
+					<label htmlFor='b'>b:</label>
+					<input
+						type='number'
+						id='b'
+						value={b}
+						onChange={(e) => setB(e.target.value)}
+						className={`${commonClasses} bg-[#0d1117] text-[#c9d1d9] border border-[#30363d] p-4 font-mono resize-none focus:ring-2 focus:ring-[#58a6ff] focus:border-transparent`}
+					/>
+				</div>
+			</div>
 		);
 	};
 
@@ -490,37 +639,41 @@ function App() {
 			case 'image':
 				return (
 					<img
-						src={output.data as string}
-						alt='Results'
+						src={getImageURL(output.data as string)}
+						alt='Résultats'
 					/>
 				);
 
 			case 'multiple':
 				return (
 					<div className='grid grid-cols-1 md:grid-cols-2 gap-4 h-full overflow-y-auto'>
-						{(output.data as PlotData[]).map((plot, index) => (
-							<div
-								key={index}
-								className='bg-[#0d1117] p-4 rounded-lg'
-							>
-								<Plot
-									data={[plot]}
-									layout={{
-										paper_bgcolor: '#0d1117',
-										plot_bgcolor: '#0d1117',
-										font: {
-											color: '#c9d1d9',
-											size: fontSize,
-										},
-										margin: { t: 10, r: 10, b: 50, l: 50 },
-										showlegend: true,
-										width: 400,
-										height: 300,
-									}}
-									config={{ responsive: true }}
-								/>
-							</div>
-						))}
+						{(output.data as MultipleOutputItem[]).map(
+							(item, index) => (
+								<div
+									key={index}
+									className='bg-[#0d1117] p-4 rounded-lg'
+								>
+									{item.type === 'text' && (
+										<pre
+											style={{
+												...commonStyles,
+												whiteSpace: 'pre-wrap',
+												wordWrap: WORD_WRAP,
+											}}
+											className='w-full overflow-auto scrollbar-hide'
+										>
+											{item.data}
+										</pre>
+									)}
+									{item.type === 'image' && (
+										<img
+											src={getImageURL(item.data)}
+											alt={`Résultat ${index + 1}`}
+										/>
+									)}
+								</div>
+							)
+						)}
 					</div>
 				);
 
@@ -549,14 +702,22 @@ function App() {
 
 				if (data.success) {
 					setInput(data.code); // Set the input to the MATLAB code
-					setStatus('MATLAB code loaded');
+					setStatus('Code MATLAB chargé');
 				} else {
-					console.error('Error loading MATLAB code:', data.error);
-					setStatus(`Error loading MATLAB code: ${data.error}`);
+					console.error(
+						'Erreur lors du chargement du code MATLAB:',
+						data.error
+					);
+					setStatus(
+						`Erreur lors du chargement du code MATLAB : ${data.error}`
+					);
 				}
 			} catch (error) {
-				console.error('Error fetching MATLAB code:', error);
-				setStatus('Error loading MATLAB code');
+				console.error(
+					'Erreur lors du chargement du code MATLAB:',
+					error
+				);
+				setStatus('Erreur lors du chargement du code MATLAB');
 			}
 		}
 
@@ -566,7 +727,7 @@ function App() {
 	};
 
 	const renderSidebarContent = () => (
-		<nav className='p-2 overflow-y-auto h-[calc(100%-4rem)]'>
+		<nav className='p-2 scrollbar-hide overflow-y-auto h-[calc(100%-4rem)]'>
 			{Object.entries(methodConfigs).map(([key, config]) => (
 				<div
 					key={key}
@@ -601,7 +762,7 @@ function App() {
 
 					{/* Options Panel */}
 					<div
-						className={`overflow-hidden transition-all duration-300 ${
+						className={`overflow-y-auto scrollbar-hide transition-all duration-300 ${
 							expandedMethod === key
 								? 'max-h-[500px] opacity-100'
 								: 'max-h-0 opacity-0'
@@ -641,7 +802,7 @@ function App() {
 				<div className='p-4 border-b border-[#30363d] flex items-center justify-between'>
 					<h2 className='text-lg font-semibold flex items-center gap-2'>
 						<Terminal className='w-5 h-5' />
-						Analysis Methods
+						Méthodes d'analyse
 					</h2>
 					<button
 						onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -669,7 +830,8 @@ function App() {
 							<div className='flex items-center gap-2'>
 								<Terminal className='w-8 h-8 text-white' />
 								<h1 className='text-3xl font-bold text-white'>
-									Electromagnetic Numerical Analysis Interface
+									Interface d'analyse numérique
+									électromagnétique
 								</h1>
 								<button
 									onClick={() =>
@@ -706,8 +868,8 @@ function App() {
 										<Hash className='w-5 h-5' />
 									)}
 									{inputType === 'code'
-										? 'MATLAB Code Input'
-										: 'Numerical Input'}
+										? 'Entrée de Code MATLAB'
+										: 'Entrée Numérique'}
 								</h2>
 								{/* Font size and fullscreen controls */}
 								<div className='flex items-center gap-2 mb-2'>
@@ -768,18 +930,18 @@ function App() {
 									className='flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#1a237e] to-[#0d47a1] text-white rounded-lg hover:shadow-lg transition-all duration-300 hover:-translate-y-1'
 								>
 									<Play className='w-4 h-4' />
-									Execute
+									Exécuter
 								</button>
 								<button
 									onClick={clearInput}
 									className='flex items-center gap-2 px-4 py-2 bg-[#21262d] text-[#c9d1d9] rounded-lg hover:bg-[#30363d] transition-all duration-300'
 								>
 									<Trash2 className='w-4 h-4' />
-									Clear
+									Effacer
 								</button>
 							</div>
 							<div className='mt-4 p-2 bg-[#0d1117] rounded-lg text-sm text-[#8b949e]'>
-								Status: {status}
+								Statut: {status}
 							</div>
 						</div>
 
@@ -793,7 +955,7 @@ function App() {
 							<div className='flex items-center justify-between mb-4'>
 								<h2 className='text-xl font-semibold flex items-center gap-2'>
 									<Activity className='w-5 h-5' />
-									Results
+									Résultats
 								</h2>
 								<button
 									onClick={() =>
@@ -823,13 +985,13 @@ function App() {
 					<div className='mt-8 bg-[#161b22] p-6 rounded-xl border border-[#30363d]'>
 						<h2 className='text-xl font-semibold mb-4 flex items-center gap-2'>
 							<GitMerge className='w-5 h-5' />
-							Comments
+							Commentaires
 						</h2>
 						<textarea
 							value={comments}
 							onChange={(e) => setComments(e.target.value)}
 							className='w-full h-32 bg-[#0d1117] text-[#c9d1d9] border border-[#30363d] rounded-lg p-4 resize-none focus:ring-2 focus:ring-[#58a6ff] focus:border-transparent'
-							placeholder='Add your comments or notes here...'
+							placeholder='Ajouter vos commentaires ou notes ici...'
 						/>
 					</div>
 				</div>

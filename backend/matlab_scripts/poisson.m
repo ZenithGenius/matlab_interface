@@ -160,6 +160,11 @@ for k=2:1:nx
      x(k)= x(k-1)+hx(k-1);
 end
 
+% Create the results directory if it doesn't exist
+if ~exist('results/poisson', 'dir')
+    mkdir('results/poisson');
+end
+
 % Base filename
 baseFilename = 'results/poisson/poisson_results.txt';
 filename = baseFilename;

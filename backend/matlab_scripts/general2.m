@@ -39,6 +39,10 @@ xlabel('-\pi \leq \Phi \leq \pi (gradu en rad)');
 ylabel('E(\Phi)');
 title('\Phi = 0');
 
+if ~exist('results/general2', 'dir')
+    mkdir('results/general2');
+end
+
 % Base filename for the plot
 baseFilename = 'results/general2/general2_plot.png';
 filename = baseFilename;

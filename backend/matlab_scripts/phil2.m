@@ -9,6 +9,11 @@ function save_phil2_plot
     xlabel('x');
     ylabel('phi');
     grid on;
+
+    % Create the results directory if it doesn't exist
+    if ~exist('results/phil2', 'dir')
+        mkdir('results/phil2');
+    end
     
     % Base filename for the plot
     baseFilename = 'results/phil2/phil2_plot.png';
